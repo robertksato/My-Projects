@@ -1,0 +1,100 @@
+Sub CreateEmail()
+ThisWorkbook.Worksheets("VES Details").Cells.ClearContents
+
+    Dim Series, FrNumber, ToNumber As Long
+    'Advanced Filter for the vendors
+    FrNumber = ThisWorkbook.Worksheets("Lieferanten Bewertung").Range("D2").Value 'Set From Number
+    ToNumber = ThisWorkbook.Worksheets("Lieferanten Bewertung").Range("F2").Value 'Set To Number
+    
+    If FrNumber >= ToNumber And ToNumber <= FrNumber Then
+    For i = FrNumber To ToNumber
+    
+    ThisWorkbook.Worksheets("Lieferanten Bewertung").Range("B" & i).Copy ThisWorkbook.Worksheets("Datenbasis").Range("A2")
+    
+    Dim rgData, rgCriteria, rgOutput As Range
+    Dim sRes As Variant
+    
+    Set rgData = ThisWorkbook.Worksheets("Datenbasis").Range("A4").CurrentRegion
+    Set rgCriteria = ThisWorkbook.Worksheets("Datenbasis").Range("A1:A2")
+    
+    Set rgOutput = ThisWorkbook.Worksheets("VES Details").Range("A1")
+    
+    rgData.AdvancedFilter xlFilterCopy, rgCriteria, rgOutput
+    
+    Dim FileExtStr, TempFilePath, TempFileName As String
+    Dim FileFormatNum As Long
+    Dim Sourcewb, Destwb As Workbook
+    Dim Sh As Worksheet
+    Dim TheActiveWindow, TempWindow As Window
+    Dim Sheets(0 To 7) As Variant
+    
+    With Application
+        .ScreenUpdating = False
+        .EnableEvents = False
+    End With
+
+    Set Sourcewb = ActiveWorkbook
+    
+    'Copy the sheets to a new workbook
+    'Add a temporary Window to avoid the Copy problem
+    With Sourcewb
+        Set TheActiveWindow = ActiveWindow
+        Set TempWindow = .NewWindow
+        .Sheets(Array("VES Details", "Erläuterungen - Explanations", "Kontaktpersonen - Contacts")).Copy
+    End With
+
+    'Close temporary Window
+    TempWindow.Close
+
+    Set Destwb = ActiveWorkbook
+    'Determine the Excel version and file extension/format
+    With Destwb
+            'You use Excel 2007-2016
+            FileExtStr = ".xlsx": FileFormatNum = 51
+             
+    End With
+    
+     'Save the new workbook/Mail it/Delete it
+    TempFilePath = Environ$("temp") & "\"
+    TempFileName = Sheet1.Cells(i, 10).Value & " " & Sheet1.Cells(i, 3).Value & " " & Format(Now, "dd-mmm-yy h-mm-ss")
+    
+    Dim ol As Outlook.Application
+    Dim olmail As Outlook.MailItem
+    
+    Set ol = New Outlook.Application
+    Set olmail = ol.CreateItem(olMailItem)
+    
+    With Destwb
+    .SaveAs TempFilePath & TempFileName & FileExtStr, FileFormat:=FileFormatNum
+    On Error Resume Next
+    
+    With olmail
+        .To = Sheet1.Cells(i, 9).Value
+        .CC = Sheet1.Cells(i, 11).Value & ";" & Sheet1.Cells(i, 13).Value & ";" & Sheet1.Cells(i, 15).Value & ";" & Sheet1.Cells(i, 17).Value
+        .Subject = Sheet1.Cells(i, 10).Value & " " & Sheet1.Cells(i, 3).Value
+        .Body = Sheet1.Cells(i, 5).Value & " " & Sheet1.Cells(i, 6).Value & " " & Sheet1.Cells(i, 8).Value & "," & vbNewLine & vbNewLine & Sheet1.Cells(i, 19).Value
+        .Attachments.Add Destwb.FullName
+        .Display
+        .HTMLBody = strHTMLBody & olmail.HTMLBody
+        
+    End With
+    On Error GoTo 0
+    .Close savechanges:=False
+    
+    'Delete the file you have sent
+    Kill TempFilePath & TempFileName & FileExtStr
+
+    Set olmail = Nothing
+    Set ol = Nothing
+
+    With Application
+        .ScreenUpdating = True
+        .EnableEvents = True
+    End With
+    
+    End With
+    
+    Next i
+    End If
+End Sub
+
